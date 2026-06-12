@@ -1,0 +1,5 @@
+node_modules/
+mock_database.json
+.env
+.vercel
+test_api.js

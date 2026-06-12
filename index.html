@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuVar - Gestión y Análisis de Variables Aleatorias</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS for local Excel/CSV reading and exporting -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- AUTHENTICATION PANELS -->
+  <div id="auth-screen" class="auth-container">
+    <!-- Login Card -->
+    <div id="login-card" class="auth-card">
+      <div class="auth-header">
+        <h1>SimuVar</h1>
+        <p>Gestión de variables para proyectos de simulación</p>
+      </div>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-username">Usuario</label>
+          <input type="text" id="login-username" class="input-field" placeholder="Ingrese su usuario" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="input-field" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-primary">Iniciar Sesión</button>
+      </form>
+      <div class="auth-footer">
+        ¿No tienes cuenta? <a href="#" id="go-to-register">Regístrate aquí</a>
+      </div>
+    </div>
+
+    <!-- Register Card -->
+    <div id="register-card" class="auth-card" style="display: none;">
+      <div class="auth-header">
+        <h1>Crear Cuenta</h1>
+        <p>Únete a la plataforma de simulación</p>
+      </div>
+      <form id="register-form">
+        <div class="form-group">
+          <label for="register-username">Nombre de Usuario</label>
+          <input type="text" id="register-username" class="input-field" placeholder="Mínimo 3 caracteres" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="register-password">Contraseña</label>
+          <input type="password" id="register-password" class="input-field" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label for="register-role">Rol en el Sistema</label>
+          <select id="register-role" class="input-field" required>
+            <option value="investigador">Investigador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-primary">Registrarse</button>
+      </form>
+      <div class="auth-footer">
+        ¿Ya tienes cuenta? <a href="#" id="go-to-login">Inicia sesión</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD SYSTEM -->
+  <div id="dashboard-screen" class="dashboard-wrapper" style="display: none;">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">S</div>
+        <h2>SimuVar Dashboard</h2>
+      </div>
+
+      <!-- Logged User Info -->
+      <div class="sidebar-user">
+        <div class="user-info">
+          <span id="user-display-name" class="username">Usuario</span>
+          <span id="user-display-role" class="role">Investigador</span>
+        </div>
+        <button id="logout-btn" class="btn-logout" title="Cerrar Sesión">
+          <!-- SVG Logout Icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </div>
+
+      <!-- Variables Navigation -->
+      <div class="variables-section">
+        <div class="section-header">
+          <h3>Variables Aleatorias</h3>
+          <button id="add-variable-btn" class="btn-circle" title="Registrar Nueva Variable">+</button>
+        </div>
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="Buscar variable...">
+        </div>
+        <div id="variables-list" class="variables-list-container">
+          <!-- Variables populated dynamically -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main View Area -->
+    <main class="main-content">
+      <!-- Welcome View (No variable selected) -->
+      <div id="welcome-view" class="welcome-panel">
+        <div class="icon-large">📊</div>
+        <h1>Bienvenido a SimuVar</h1>
+        <p>Selecciona una variable aleatoria de la lista para gestionar sus datos, analizar su distribución y descargar reportes estadísticos. Si aún no tienes variables creadas, presiona el botón "+" de arriba.</p>
+        <button id="welcome-create-btn" class="btn btn-secondary">Crear mi primera variable</button>
+      </div>
+
+      <!-- Variable Operations View -->
+      <div id="variable-detail-view" style="display: none;">
+        <!-- Header -->
+        <div class="view-header">
+          <div class="view-header-title">
+            <h2 id="active-var-name">Variable Name</h2>
+            <span id="active-var-type-badge" class="badge-type discreta">Discreta</span>
+            <p id="active-var-desc" style="margin-top: 10px;">Variable Description</p>
+            <small style="color: var(--text-muted); display: block; margin-top: 5px;">Creador: <span id="active-var-creator">N/A</span></small>
+          </div>
+          <div class="header-actions">
+            <button id="edit-variable-btn" class="btn btn-secondary btn-sm">Editar Variable</button>
+            <button id="delete-variable-btn" class="btn btn-danger btn-sm">Eliminar Variable</button>
+          </div>
+        </div>
+
+        <!-- Descriptive Statistics Cards -->
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">Media (μ)</div>
+            <div id="stat-mean" class="stat-value">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Mediana</div>
+            <div id="stat-median" class="stat-value">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Moda</div>
+            <div id="stat-mode" class="stat-value">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Desv. Estándar (σ)</div>
+            <div id="stat-stddev" class="stat-value">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Mínimo (Min)</div>
+            <div id="stat-min" class="stat-value">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Máximo (Max)</div>
+            <div id="stat-max" class="stat-value">-</div>
+          </div>
+        </div>
+
+        <!-- Visualisation & Charts -->
+        <div class="analytics-grid">
+          <!-- Histogram card -->
+          <div class="card">
+            <div class="card-title">Distribución de Frecuencias (Histograma)</div>
+            <div class="chart-container">
+              <canvas id="distribution-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Data collection input card -->
+          <div class="card">
+            <div class="card-title">Ingreso de Datos</div>
+            <!-- Manual insertion -->
+            <form id="add-data-form">
+              <div class="form-group">
+                <label for="data-value-input">Registrar Valor Individual</label>
+                <div class="input-row">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <input type="number" step="any" id="data-value-input" class="input-field" placeholder="Ej: 4.5" required>
+                  </div>
+                  <button type="submit" class="btn btn-secondary">Agregar</button>
+                </div>
+              </div>
+            </form>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+            <!-- Mass Upload CSV / Excel -->
+            <div class="form-group">
+              <label>Carga Masiva (CSV / Excel)</label>
+              <div id="dropzone" class="file-dropzone">
+                <div class="file-dropzone-icon">📥</div>
+                <div class="file-dropzone-text">Arrastra tu archivo aquí o <span>selecciona archivo</span></div>
+                <input type="file" id="file-input" accept=".csv, .xlsx, .xls">
+              </div>
+              <a href="#" id="download-template-btn" class="sample-link">Descargar plantilla de ejemplo (.csv)</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data table display panel -->
+        <div class="data-grid">
+          <!-- Left: Operations & Exports -->
+          <div class="card">
+            <div class="card-title">Opciones de Datos</div>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+              Total de registros recolectados: <strong id="data-total-count" style="color: #fff;">0</strong>
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <button id="export-csv-btn" class="btn btn-secondary">Exportar a CSV</button>
+              <button id="export-excel-btn" class="btn btn-secondary">Exportar a Excel (XLSX)</button>
+              <button id="clear-data-btn" class="btn btn-danger">Vaciar Datos de Variable</button>
+            </div>
+          </div>
+
+          <!-- Right: Data records listing -->
+          <div class="card">
+            <div class="card-title">Registros Recolectados</div>
+            <div class="data-table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Valor Registrado</th>
+                    <th>Fecha de Registro</th>
+                    <th style="text-align: right;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="data-records-table-body">
+                  <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                      No hay registros de datos asociados a esta variable.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- Create/Edit Variable Modal -->
+  <div id="variable-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <h3 id="variable-modal-title" class="modal-title">Registrar Variable Aleatoria</h3>
+      <form id="variable-modal-form">
+        <input type="hidden" id="variable-modal-id">
+        <div class="form-group">
+          <label for="variable-name">Nombre de la Variable</label>
+          <input type="text" id="variable-name" class="input-field" placeholder="Ej. Tiempo de Servicio, Clientes en Cola" required>
+        </div>
+        <div class="form-group">
+          <label for="variable-type">Tipo de Variable</label>
+          <select id="variable-type" class="input-field" required>
+            <option value="discreta">Discreta (Valores enteros)</option>
+            <option value="continua">Continua (Valores decimales/reales)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="variable-desc">Descripción / Unidad de Medida</label>
+          <textarea id="variable-desc" class="input-field" rows="3" placeholder="Ej. Tiempo transcurrido en minutos para atender a un usuario en ventanilla." style="resize: none;"></textarea>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="cancel-variable-modal" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="width: auto;">Guardar Variable</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Data Record Value Modal -->
+  <div id="data-record-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <h3 class="modal-title">Editar Registro de Dato</h3>
+      <form id="data-record-modal-form">
+        <input type="hidden" id="data-record-modal-id">
+        <div class="form-group">
+          <label for="data-record-modal-value">Valor Registrado</label>
+          <input type="number" step="any" id="data-record-modal-value" class="input-field" required>
+          <span id="data-record-modal-type-tip" style="font-size: 11px; color: var(--accent); margin-top: 6px; display: block;"></span>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="cancel-data-record-modal" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="width: auto;">Actualizar Valor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Javascript Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
