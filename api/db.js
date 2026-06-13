@@ -37,7 +37,7 @@ async function mockQuery(text, params = []) {
     const user = data.users.find(u => u.username.toLowerCase() === username);
     return { rows: user ? [user] : [] };
   }
-  
+
   // 2. Check if user already exists
   if (sql.includes('SELECT id FROM users WHERE LOWER(username) = $1')) {
     const username = params[0].toLowerCase();
@@ -102,7 +102,7 @@ async function mockQuery(text, params = []) {
   }
 
   // 7. Check variable type and ownership (handles both column orderings)
-  if ((sql.includes('FROM variables WHERE id = $1') && !sql.includes('INSERT') && !sql.includes('UPDATE') && !sql.includes('DELETE') && !sql.includes('v.id, v.name')) ) {
+  if ((sql.includes('FROM variables WHERE id = $1') && !sql.includes('INSERT') && !sql.includes('UPDATE') && !sql.includes('DELETE') && !sql.includes('v.id, v.name'))) {
     const id = parseInt(params[0], 10);
     const variable = data.variables.find(v => v.id === id);
     return { rows: variable ? [variable] : [] };
@@ -114,7 +114,7 @@ async function mockQuery(text, params = []) {
     const description = params[1];
     const type = params[2];
     const id = parseInt(params[3], 10);
-    
+
     const idx = data.variables.findIndex(v => v.id === id);
     if (idx !== -1) {
       data.variables[idx].name = name;
@@ -169,7 +169,7 @@ async function mockQuery(text, params = []) {
     const insertedRows = [];
     for (let i = 0; i < params.length; i += 2) {
       const varId = parseInt(params[i], 10);
-      const val = parseFloat(params[i+1]);
+      const val = parseFloat(params[i + 1]);
       const newRec = {
         id: data.data_records.length + 1,
         variable_id: varId,
@@ -194,12 +194,14 @@ async function mockQuery(text, params = []) {
     const rec = data.data_records.find(r => r.id === recId);
     if (rec) {
       const variable = data.variables.find(v => v.id === rec.variable_id);
-      return { rows: [{
-        id: rec.id,
-        variable_id: rec.variable_id,
-        type: variable ? variable.type : 'continua',
-        user_id: variable ? variable.user_id : null
-      }] };
+      return {
+        rows: [{
+          id: rec.id,
+          variable_id: rec.variable_id,
+          type: variable ? variable.type : 'continua',
+          user_id: variable ? variable.user_id : null
+        }]
+      };
     }
     return { rows: [] };
   }
@@ -244,28 +246,28 @@ if (hasEnvConfig) {
   try {
     const config = connectionString
       ? {
-          connectionString,
-          ssl: { rejectUnauthorized: false }
-        }
+        connectionString,
+        ssl: { rejectUnauthorized: false }
+      }
       : {
-          host: process.env.PGHOST,
-          user: process.env.PGUSER,
-          password: process.env.PGPASSWORD,
-          database: process.env.PGDATABASE,
-          port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
-          ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false
-        };
+        host: process.env.PGHOST,
+        user: process.env.PGUSER,
+        password: process.env.PGPASSWORD,
+        database: process.env.PGDATABASE,
+        port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
+        ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false
+      };
 
     pool = new Pool(config);
-    
+
     // Check pool errors
     pool.on('error', (err) => {
       console.error('PostgreSQL client error:', err);
       enableMockFallback();
     });
   } catch (error) {
-    console.error('Database connection pool init failed:', error);
-    enableMockFallback();
+    console.error('POOL INIT ERROR:', error);
+    throw error;
   }
 } else {
   enableMockFallback();
@@ -289,11 +291,10 @@ module.exports = {
     }
     try {
       return await pool.query(text, params);
-    } catch (dbError) {
-      // If a database query fails because of connection issue, try to failover to mock
-      console.error('DB query error. Attempting fallback to mock database...', dbError);
-      enableMockFallback();
-      return mockQuery(text, params);
+    }
+    catch (dbError) {
+      console.error('POSTGRES ERROR:', dbError);
+      throw dbError;
     }
   }
 };
